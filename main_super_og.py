@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from ObsPreprocessing import ObsPreprocessing
 import nes_gym
 
-def make_env(envs_create:int=1, framestack:int=4, render_mode:str="rgb_array", fps_limit:int=-1) -> gym.vector.AsyncVectorEnv:
+def make_env(game_name:str, envs_create:int=1, framestack:int=4, render_mode:str="rgb_array", fps_limit:int=-1) -> gym.vector.AsyncVectorEnv:
     '''
     Create a vectorised game environment.
 
@@ -28,13 +28,13 @@ def make_env(envs_create:int=1, framestack:int=4, render_mode:str="rgb_array", f
     '''
     print(f"Creating {envs_create} envs")
 
-    def create_env(render_mode:str="rgb_array"):
-        env = ObsPreprocessing(gym.make('NES/SuperMarioBros-v1', render_mode=render_mode, max_episode_steps=10000))
+    def create_env(game_name:str, render_mode:str="rgb_array"):
+        env = ObsPreprocessing(gym.make(f'NES/{game_name}-v1', render_mode=render_mode, max_episode_steps=10000))
 
         return gym.wrappers.FrameStackObservation(env, stack_size=framestack)
     
     return gym.vector.AsyncVectorEnv(
-        [lambda: create_env(render_mode=render_mode) for _ in range(envs_create)],
+        [lambda: create_env(game_name, render_mode=render_mode) for _ in range(envs_create)],
         context="spawn",  # Required for Windows
     )
 
@@ -78,7 +78,7 @@ def format_arguments(arg_string):
 def evaluate_agent(net_state_dict, network_creator, eval_envs, num_eval_episodes, agent_name, testing, game, life_info,
                    n_actions, device, index, framestack, repeat_probs, pruning=False):
 
-    eval_env = make_env(eval_envs, framestack=4, render_mode="rgb_array")
+    eval_env = make_env(game, eval_envs, framestack=4, render_mode="rgb_array")
     evals = []
     eval_episodes = 0
     eval_scores = np.array([0 for i in range(eval_envs)])
@@ -134,11 +134,11 @@ def main():
     parser = argparse.ArgumentParser()
 
     # environment setup
-    parser.add_argument('--game', type=str, default="SMB")
+    parser.add_argument('--game', type=str, default="Tetris")
     parser.add_argument('--envs', type=int, default=64) # 64
     parser.add_argument('--bs', type=int, default=256)
     parser.add_argument('--rr', type=float, default=1) # 1
-    parser.add_argument('--frames', type=int, default=200000000)
+    parser.add_argument('--frames', type=int, default=200000000) # 200000000
     parser.add_argument('--repeat', type=int, default=0)
     parser.add_argument('--include_evals', type=int, default=1)
     parser.add_argument('--eval_envs', type=int, default=10)
@@ -152,7 +152,7 @@ def main():
     parser.add_argument('--nstep', type=int, default=3)
     parser.add_argument('--vector', type=int, default=1)
     parser.add_argument('--maxpool_size', type=int, default=6)
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-4) # 1e-4
     parser.add_argument('--testing', type=bool, default=False)
     parser.add_argument('--ema_tau', type=float, default=2.5e-4)
     parser.add_argument('--munch', type=int, default=1)
@@ -185,7 +185,7 @@ def main():
     parser.add_argument('--per_alpha', type=float, default=0.2)
     parser.add_argument('--per_beta_anneal', type=int, default=0)
     parser.add_argument('--layer_norm', type=int, default=0)
-    parser.add_argument('--eps_steps', type=int, default=2000000)
+    parser.add_argument('--eps_steps', type=int, default=2000000) # 2000000
     parser.add_argument('--eps_disable', type=int, default=1)
     parser.add_argument('--stoch', type=int, default=0)
     parser.add_argument('--perturb', type=int, default=0)
@@ -276,7 +276,7 @@ def main():
 
     if len(formatted_string) > 2:
         agent_name += '_' + formatted_string
-
+    
     print("Agent Name:" + str(agent_name))
     testing = args.testing
 
@@ -284,9 +284,9 @@ def main():
         counter = 0
         while True:
             if counter == 0:
-                new_dir_name = agent_name
+                new_dir_name = "output/" + agent_name
             else:
-                new_dir_name = f"{agent_name}_{counter}"
+                new_dir_name = f"output/{agent_name}_{counter}"
             if not os.path.exists(new_dir_name):
                 break
             counter += 1
@@ -323,7 +323,7 @@ def main():
     device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')
     print("Device: " + str(device))
 
-    env = make_env(num_envs, framestack=4, render_mode="rgb_array")
+    env = make_env(game, num_envs, framestack=4, render_mode="rgb_array")
     print(env.observation_space)
     print(env.action_space[0])
     n_actions = env.action_space[0].n

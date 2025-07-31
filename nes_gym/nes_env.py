@@ -48,7 +48,7 @@ class NESEnv(gym.Env):
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         rom_path = os.path.join(current_dir, 'roms', f'{game_name}.bin')
-        
+
         # Create either windowless or windowed instance of the cynes emulator
         if render_mode == "rgb_array":
             self.nes = NES(rom_path)
@@ -205,3 +205,18 @@ class NESEnv(gym.Env):
         self._did_step()
 
         return obs, reward, self.done, False, {}
+    
+    def read_mult_byte(self, locations:list, endian:str = "big", ram_selection:np.array = None) -> int:
+        if ram_selection is None: ram_selection = self.current_ram
+        
+        result: int = 0
+        mult = 1
+
+        if endian not in ["little", "big"]: raise Exception(f"Attempted multi-byte read with invalid endian argument of: '{endian}'. Valid options are 'little' and 'big'.")
+        locations = sorted(locations) if endian == "little" else  sorted(locations, reverse=True)
+
+        for addr in locations:
+            result += mult * np.uint64(ram_selection[addr])
+            mult *= 0x100
+
+        return result

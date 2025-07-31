@@ -133,6 +133,7 @@ class ObsPreprocessing(gym.Wrapper, gym.utils.RecordConstructorArgs):
 
         # Crop the center of the observation
         cropped_obs = self.obs_buffer[0][98:266, 44:212]
+        cropped_obs = self.obs_buffer[0]
 
         # Resize the cropped observation
         obs = cv2.resize(

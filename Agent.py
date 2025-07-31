@@ -178,7 +178,7 @@ class Agent:
         if self.testing:
             self.min_sampling_size = 4000
         else:
-            self.min_sampling_size = 200000
+            self.min_sampling_size = 200000 # 200000
 
         self.lr = lr
 

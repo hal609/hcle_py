@@ -32,6 +32,7 @@ class TetrisEnv(NESEnv):
 
         self.ram_dict = {
             "game_phase": 0x0048,
+            "score_bytes": [0x0053, 0x0054, 0x0055],
             "score_third_byte": 0x0053,
             "score_second_byte": 0x0054,
             "score_first_byte": 0x0055,
@@ -65,33 +66,35 @@ class TetrisEnv(NESEnv):
         if self._in_game: return
         self._backup()
 
-    def get_current_score(self):
+    def get_current_score(self) -> np.int64:
+        return np.int64(self.read_mult_byte(self.ram_dict["score_bytes"], endian="little"))
+    
         byte1 = np.uint64(self.current_ram[self.ram_dict["score_first_byte"]])
         byte2 = np.uint64(self.current_ram[self.ram_dict["score_second_byte"]])
         byte3 = np.uint64(self.current_ram[self.ram_dict["score_third_byte"]])
 
         return byte1 + byte2*0x100 + byte3*0x100*0x100
     
-    def get_previous_score(self):
+    def get_previous_score(self) -> np.int64:
+        return np.int64(self.read_mult_byte(self.ram_dict["score_bytes"], endian="little", ram_selection=self.previous_ram))
         byte1 = np.uint64(self.previous_ram[self.ram_dict["score_first_byte"]])
         byte2 = np.uint64(self.previous_ram[self.ram_dict["score_second_byte"]])
         byte3 = np.uint64(self.previous_ram[self.ram_dict["score_third_byte"]])
 
         return byte1 + byte2*0x100 + byte3*0x100*0x100
     
-    def get_score_change(self) -> int:
+    def get_score_change(self) -> np.int64:
         return self.get_current_score() - self.get_previous_score()
     
     def get_reward(self) -> float:
         """Return the reward after a step occurs."""
-        reward = -0.1
+        reward = 0.01
         reward += float(self.get_score_change())
-
-        print(self.get_current_score())
+        if self.current_ram[self.ram_dict["game_over"]] == 0xA: reward -= 20
+        # print(self.get_current_score())
 
         return reward
         
     def get_done(self) -> bool:
         """Return True if the episode is over, False otherwise."""
         return self.current_ram[self.ram_dict["game_over"]] == 0xA
-        return False

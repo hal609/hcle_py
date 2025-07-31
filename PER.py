@@ -289,7 +289,7 @@ class PER:
 
         prios, idxs, tree_idxs = self.st.find(samples)
 
-        probs = prios / p_total
+        probs = (prios + 1e-6) / (p_total + 1e-6)
 
         # fetch the pointers by using indices
         pointers = self.pointer_mem[idxs]
