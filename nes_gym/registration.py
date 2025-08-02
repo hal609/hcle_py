@@ -5,7 +5,9 @@ import gymnasium as gym
 GAME_REGISTRY = {
     "SuperMarioBros": "nes_gym.games.smb1:SMB1Env",
     "MikeTysonsPunchOut": "nes_gym.games.mtpo:MTPOEnv",
-    "Tetris": "nes_gym.games.tetris:TetrisEnv"
+    "Tetris": "nes_gym.games.tetris:TetrisEnv",
+    "DrMario": "nes_gym.games.drmario:DrMarioEnv",
+    "SuperMarioBros3": "nes_gym.games.smb3:SMB3Env"
 }
 
 def register_nes_envs():
