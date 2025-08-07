@@ -12,6 +12,8 @@ inputs = [
     NES_INPUT_RIGHT | NES_INPUT_B,
     NES_INPUT_RIGHT | NES_INPUT_B | NES_INPUT_A, 
     ]
+
+IS_DEAD = 0x10
     
 class SMB1Env(NESEnv):
     """An environment for playing an NES game with OpenAI Gym."""
@@ -52,6 +54,10 @@ class SMB1Env(NESEnv):
     def _in_game(self) :
         '''Return the current game mode.'''
         return self.nes[0x0770] == 0x01
+    
+    @property
+    def _is_dead(self):
+        return self.current_ram[IS_DEAD] == 1
     
     def skip_between_rounds(self) -> None:
         ''' If agent is not in game then spam start until the next level begins.'''
@@ -94,12 +100,11 @@ class SMB1Env(NESEnv):
         self.value_change(self.ram_dict["current_page"])
         reward += float(self.get_pos_change())
 
-        is_dead = (self.current_ram[self.ram_dict["player_state"]] == self.player_states["Player dies"])
+        is_dead = self._is_dead
         if is_dead: reward = -20
         return reward
         
 
     def get_done(self) -> bool:
         """Return True if the episode is over, False otherwise."""
-        is_dead = (self.current_ram[self.ram_dict["player_state"]] == self.player_states["Player dies"])
-        return is_dead
+        return self._is_dead
