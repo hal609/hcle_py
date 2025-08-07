@@ -6,8 +6,7 @@ from .cynes.__init__ import *
 from .cynes.__init__ import NES
 from .cynes.windowed import WindowedNES
 import gymnasium as gym
-from gymnasium.spaces import Box
-from gymnasium.spaces import Discrete
+from gymnasium.spaces import Box, Discrete
 from abc import abstractmethod
 
 # Define NES input constants
@@ -22,6 +21,7 @@ NES_INPUT_B = 0x40
 NES_INPUT_A = 0x80
 
 INPUTS = [NES_INPUT_NONE,NES_INPUT_RIGHT,NES_INPUT_LEFT,NES_INPUT_DOWN,NES_INPUT_UP,NES_INPUT_START,NES_INPUT_SELECT,NES_INPUT_B,NES_INPUT_A]
+INPUTS = np.arange(255)
 
 class NESEnv(gym.Env):
     ''' NES Gymnasium Environment. '''
@@ -53,7 +53,7 @@ class NESEnv(gym.Env):
         if render_mode == "rgb_array":
             self.nes = NES(rom_path)
         elif render_mode == "human":
-            self.nes = WindowedNES(rom_path)
+            self.nes = WindowedNES(rom_path, default_handlers=True)
         else:
             raise Exception("Invalid render mode passed. Valid render modes are 'rgb_array' and 'human'.")
 
@@ -69,7 +69,7 @@ class NESEnv(gym.Env):
         self.last_time = time.time()
 
         self.episode_frame_count = 0
-        self.max_episode_length = max_episode_steps
+        self.max_ep_len = max_episode_steps
 
         self.current_ram = np.zeros(2048)
         self.previous_ram = np.zeros(2048)
@@ -82,7 +82,7 @@ class NESEnv(gym.Env):
         '''Return the difference between a RAM value at the current frame and the previous frame.'''
         return int(int(self.current_ram[address]) - int(self.previous_ram[address]))
     
-    def reset(self, seed=None, options=None):
+    def reset(self, seed=None, options=None, savestate=None):
         '''
         Reset the emulator to the last save, or to power on if no save is present.
 
@@ -97,8 +97,11 @@ class NESEnv(gym.Env):
         self._will_reset()
 
         # Reset the emulator
-        if self._has_backup: self._restore()
-        else: self.nes.reset()
+        if savestate is None:
+            if self._has_backup: self._restore()
+            else: self.nes.reset()
+        else:
+            self._restore(savestate=savestate)
 
         self.episode_frame_count = 0
         
@@ -120,25 +123,22 @@ class NESEnv(gym.Env):
         self._backup_state = self.nes.save()
         self._has_backup = True
 
-    def _restore(self) -> None:
+    def _restore(self, savestate=None) -> None:
         """Restore the emulator state from backup."""
-        self.nes.load(self._backup_state)
+        if savestate is None:
+            self.nes.load(self._backup_state)
+        else:
+            self.nes.load(savestate)
 
-    def _frame_advance(self, action):
+    def _frame_advance(self, action, return_state:bool = False):
         """
         Advance the emulator by one frame with the given action.
 
         Args:
             action (int): The action to perform (controller input).
         """
-        # Set the controller inputs
         self.nes.controller = action
-
-        # Advance the emulator by one frame
-        frame = self.nes.step(frames=1)
-
-        # Update the current frame (observation)
-        self.screen = frame
+        self.screen = self.nes.step(frames=1)
 
     @abstractmethod
     def _will_reset(self):
@@ -169,8 +169,10 @@ class NESEnv(gym.Env):
         raise Exception("Reward method must be overridden for each game environment.")
 
     def max_len_exceeded(self) -> bool:
-        if self.max_episode_length < 0: return False
-        return self.episode_frame_count > self.max_episode_length
+        if self.max_ep_len < 0:
+            return False
+        else:
+            return self.episode_frame_count > self.max_ep_len
     
     def get_done(self) -> bool:
         return False
@@ -205,6 +207,10 @@ class NESEnv(gym.Env):
         self._did_step()
 
         return obs, reward, self.done, False, {}
+    
+    def create_savestate(self) -> bytes:
+        """Returns a savestate of the current emulator state."""
+        return self.nes.save()
     
     def read_mult_byte(self, locations:list, endian:str = "big", ram_selection:np.array = None) -> int:
         if ram_selection is None: ram_selection = self.current_ram
