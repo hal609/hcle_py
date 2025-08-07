@@ -13,7 +13,11 @@ inputs = [
     NES_INPUT_RIGHT | NES_INPUT_B | NES_INPUT_A, 
     ]
 
-IS_DEAD = 0x10
+PLAYER_STATE = 0x000E
+GAME_MODE = 0x0770 # 00 - Start demo, 01 - Start normal, 02 - End current world, 03 - End game (dead)
+ON_PRELEVEL = 0x075E
+LEVEL_LOADING = 0x0772
+Y_VIEWPORT = 0x00B5 # Greater than 1 means off screen
     
 class SMB1Env(NESEnv):
     """An environment for playing an NES game with OpenAI Gym."""
@@ -53,11 +57,11 @@ class SMB1Env(NESEnv):
     @property
     def _in_game(self) :
         '''Return the current game mode.'''
-        return self.nes[0x0770] == 0x01
+        return self.current_ram[LEVEL_LOADING] == 3
     
     @property
     def _is_dead(self):
-        return self.current_ram[IS_DEAD] == 1
+        return self.current_ram[PLAYER_STATE] == 0x0B or self.current_ram[Y_VIEWPORT] > 0x1
     
     def skip_between_rounds(self) -> None:
         ''' If agent is not in game then spam start until the next level begins.'''
@@ -75,7 +79,7 @@ class SMB1Env(NESEnv):
         self.episode_frame_count += 1
 
         if self._has_backup: return
-        if self._in_game: return
+        if not self._in_game: return
         self._backup()
 
     def get_mario_pos(self):
